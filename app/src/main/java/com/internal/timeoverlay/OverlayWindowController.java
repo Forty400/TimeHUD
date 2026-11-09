@@ -2,9 +2,10 @@ package com.internal.timeoverlay;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.util.DisplayMetrics;
@@ -126,6 +127,7 @@ public final class OverlayWindowController {
         timeView.setMaxLines(1);
         timeView.setSingleLine(true);
         timeView.setIncludeFontPadding(false);
+        timeView.setPadding(0, 0, 0, 0);
         timeView.setTextColor(prefs.getTextColor());
 
         root = new FrameLayout(context);
@@ -204,9 +206,12 @@ public final class OverlayWindowController {
 
     private void applyAppearance() {
         background.setColor(withBgAlpha(prefs.getTransparency()));
+        root.setBackground(background);
         timeView.setTextColor(prefs.getTextColor());
         // Window alpha stays fully opaque; only background drawable alpha changes.
         params.alpha = 1f;
+        root.invalidate();
+        timeView.invalidate();
     }
 
     private void applySizeAndPosition() {
@@ -277,28 +282,7 @@ public final class OverlayWindowController {
         if (timeView == null || params == null) {
             return;
         }
-        CharSequence text = timeView.getText();
-        if (text == null || text.length() == 0) {
-            return;
-        }
-        int availableW = params.width - DpUtils.dp(context, 8);
-        int availableH = params.height - DpUtils.dp(context, 4);
-        float low = 6f;
-        float high = Math.max(availableH, 6f);
-        for (int i = 0; i < 12; i++) {
-            float mid = (low + high) / 2f;
-            timeView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, mid);
-            timeView.measure(
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            if (timeView.getMeasuredWidth() <= availableW
-                    && timeView.getMeasuredHeight() <= availableH) {
-                low = mid;
-            } else {
-                high = mid;
-            }
-        }
-        timeView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, low);
+        TimeTextFitter.fit(timeView, params.width, params.height);
     }
 
     private void startClock() {
@@ -323,29 +307,44 @@ public final class OverlayWindowController {
 
     private void showMenu() {
         dismissMenu();
+        int bgColor = withBgAlpha(prefs.getTransparency());
+        int fgColor = prefs.getTextColor();
+
         menuView = new LinearLayout(context);
-        menuView.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable menuBg = new GradientDrawable();
-        menuBg.setColor(Color.WHITE);
-        menuBg.setCornerRadius(DpUtils.dp(context, 4));
-        menuView.setBackground(menuBg);
+        menuView.setOrientation(LinearLayout.HORIZONTAL);
+        menuView.setGravity(Gravity.CENTER_VERTICAL);
+        // Transparent shell; each button carries the shared overlay appearance.
+        menuView.setBackgroundColor(0x00000000);
         int pad = DpUtils.dp(context, 2);
         menuView.setPadding(pad, pad, pad, pad);
+        menuView.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
+        menuView.setDividerPadding(0);
+        GradientDrawable gap = new GradientDrawable();
+        gap.setSize(DpUtils.dp(context, 6), 1);
+        gap.setColor(0x00000000);
+        menuView.setDividerDrawable(gap);
 
-        Button closeBtn = menuButton(context.getString(R.string.action_close_overlay));
+        Button closeBtn = menuButton(
+                context.getString(R.string.action_close), R.drawable.ic_menu_close, bgColor, fgColor);
         closeBtn.setOnClickListener(v -> {
             dismissMenu();
             Intent close = new Intent(context, OverlayService.class);
             close.setAction(OverlayService.ACTION_CLOSE);
             context.startService(close);
         });
-        Button settingsBtn = menuButton(context.getString(R.string.action_settings));
+        Button settingsBtn = menuButton(
+                context.getString(R.string.action_settings), R.drawable.ic_menu_settings, bgColor, fgColor);
         settingsBtn.setOnClickListener(v -> {
             dismissMenu();
             Intent settings = new Intent(context, MainActivity.class);
             settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             context.startActivity(settings);
         });
+
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        closeBtn.setLayoutParams(btnLp);
+        settingsBtn.setLayoutParams(btnLp);
         menuView.addView(closeBtn);
         menuView.addView(settingsBtn);
 
@@ -390,16 +389,35 @@ public final class OverlayWindowController {
         menuShowing = true;
     }
 
-    private Button menuButton(String label) {
-        Button button = new Button(context);
+    private Button menuButton(String label, int iconRes, int bgColor, int fgColor) {
+        Button button = new Button(context, null, android.R.attr.borderlessButtonStyle);
         button.setText(label);
         button.setTextSize(12);
+        button.setTextColor(fgColor);
         button.setMinHeight(DpUtils.dp(context, 32));
         button.setMinimumHeight(DpUtils.dp(context, 32));
+        button.setMinWidth(0);
         button.setAllCaps(false);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        button.setLayoutParams(lp);
+        button.setPadding(DpUtils.dp(context, 6), 0, DpUtils.dp(context, 6), 0);
+        button.setCompoundDrawablePadding(DpUtils.dp(context, 4));
+        button.setGravity(Gravity.CENTER);
+        button.setStateListAnimator(null);
+        button.setElevation(0f);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(bgColor);
+        bg.setCornerRadius(DpUtils.dp(context, 4));
+        bg.setStroke(0, 0x00000000);
+        button.setBackground(bg);
+
+        Drawable icon = context.getDrawable(iconRes);
+        if (icon != null) {
+            icon = icon.mutate();
+            icon.setColorFilter(fgColor, PorterDuff.Mode.SRC_IN);
+            int size = DpUtils.dp(context, 16);
+            icon.setBounds(0, 0, size, size);
+            button.setCompoundDrawablesRelative(icon, null, null, null);
+        }
         return button;
     }
 

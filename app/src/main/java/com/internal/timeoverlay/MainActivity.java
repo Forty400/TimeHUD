@@ -1,7 +1,11 @@
 package com.internal.timeoverlay;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -47,11 +51,26 @@ public class MainActivity extends Activity {
 
     private boolean bindingUi;
     private GradientDrawable previewBg;
+    private SharedPreferences.OnSharedPreferenceChangeListener prefListener;
+    private boolean receiverRegistered;
+
+    private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            syncOverlaySwitchFromPrefs();
+        }
+    };
 
     private final Runnable previewTicker = new Runnable() {
         @Override
         public void run() {
             refreshPreviewText();
+            // Re-fit after text length changes (date/millis).
+            SizeCalculator.Size size = currentSize();
+            TimeTextFitter.fit(
+                    previewTime,
+                    DpUtils.dp(MainActivity.this, size.widthDp),
+                    DpUtils.dp(MainActivity.this, size.heightDp));
             long delay = prefs.showMillis() ? 16L : (1000L - (System.currentTimeMillis() % 1000L));
             handler.postDelayed(this, delay);
         }
@@ -65,12 +84,19 @@ public class MainActivity extends Activity {
         NotificationHelper.ensureChannel(this);
         bindViews();
         wireListeners();
+        prefListener = (sharedPreferences, key) -> {
+            if (OverlayPrefs.KEY_ENABLED.equals(key)) {
+                handler.post(this::syncOverlaySwitchFromPrefs);
+            }
+        };
+        prefs.register(prefListener);
         bindFromPrefs();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        registerStateReceiver();
         syncOverlaySwitchWithPermission();
         bindFromPrefs();
         handler.removeCallbacks(previewTicker);
@@ -83,7 +109,41 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         handler.removeCallbacks(previewTicker);
+        unregisterStateReceiver();
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (prefListener != null) {
+            prefs.unregister(prefListener);
+        }
+        unregisterStateReceiver();
+        super.onDestroy();
+    }
+
+    private void registerStateReceiver() {
+        if (receiverRegistered) {
+            return;
+        }
+        IntentFilter filter = new IntentFilter(OverlayService.ACTION_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(stateReceiver, filter);
+        }
+        receiverRegistered = true;
+    }
+
+    private void unregisterStateReceiver() {
+        if (!receiverRegistered) {
+            return;
+        }
+        try {
+            unregisterReceiver(stateReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+        receiverRegistered = false;
     }
 
     private void bindViews() {
@@ -107,6 +167,8 @@ public class MainActivity extends Activity {
         previewBg = new GradientDrawable();
         previewBg.setCornerRadius(DpUtils.dp(this, 6));
         previewTime.setBackground(previewBg);
+        previewTime.setPadding(0, 0, 0, 0);
+        previewTime.setIncludeFontPadding(false);
     }
 
     private void wireListeners() {
@@ -142,7 +204,7 @@ public class MainActivity extends Activity {
         });
 
         groupPrecision.setOnCheckedChangeListener((group, checkedId) -> {
-            if (bindingUi) {
+            if (bindingUi || checkedId == -1) {
                 return;
             }
             prefs.setShowMillis(checkedId == R.id.radioMillis);
@@ -164,7 +226,7 @@ public class MainActivity extends Activity {
         });
 
         groupSize.setOnCheckedChangeListener((group, checkedId) -> {
-            if (bindingUi) {
+            if (bindingUi || checkedId == -1) {
                 return;
             }
             int mode = OverlayPrefs.SIZE_STANDARD;
@@ -204,7 +266,7 @@ public class MainActivity extends Activity {
         });
 
         groupColor.setOnCheckedChangeListener((group, checkedId) -> {
-            if (bindingUi) {
+            if (bindingUi || checkedId == -1) {
                 return;
             }
             prefs.setTextColor(colorForRadio(checkedId));
@@ -237,8 +299,6 @@ public class MainActivity extends Activity {
         } else if (prefs.getSizeMode() == OverlayPrefs.SIZE_LARGE) {
             sizeId = R.id.radioLarge;
         }
-        // Custom keeps last selected preset radio unchecked visually — show none selected
-        // only when custom; still allow choosing a preset later.
         if (prefs.getSizeMode() == OverlayPrefs.SIZE_CUSTOM) {
             groupSize.clearCheck();
         } else {
@@ -267,6 +327,17 @@ public class MainActivity extends Activity {
         refreshPreviewChrome();
         refreshPassthroughStatus();
         refreshPreviewText();
+    }
+
+    private void syncOverlaySwitchFromPrefs() {
+        boolean shouldBeOn = prefs.isEnabled() && Settings.canDrawOverlays(this);
+        if (switchOverlay.isChecked() == shouldBeOn) {
+            return;
+        }
+        bindingUi = true;
+        switchOverlay.setChecked(shouldBeOn);
+        bindingUi = false;
+        refreshPassthroughStatus();
     }
 
     private void applyCustomSize() {
@@ -299,7 +370,6 @@ public class MainActivity extends Activity {
         refreshSizeLabels();
         refreshPreviewChrome();
         notifyOverlay();
-        // 不弹「尺寸已保存」
     }
 
     private void showSizeError(String message) {
@@ -352,37 +422,14 @@ public class MainActivity extends Activity {
         previewTime.setTextColor(prefs.getTextColor());
 
         SizeCalculator.Size size = currentSize();
+        int widthPx = DpUtils.dp(this, size.widthDp);
+        int heightPx = DpUtils.dp(this, size.heightDp);
         ViewGroup.LayoutParams lp = previewTime.getLayoutParams();
-        lp.width = DpUtils.dp(this, size.widthDp);
-        lp.height = DpUtils.dp(this, size.heightDp);
+        lp.width = widthPx;
+        lp.height = heightPx;
         previewTime.setLayoutParams(lp);
-        fitPreviewFont(size);
-    }
-
-    private void fitPreviewFont(SizeCalculator.Size size) {
-        CharSequence text = previewTime.getText();
-        if (text == null || text.length() == 0) {
-            text = formatter.format(System.currentTimeMillis(), prefs.showDate(), prefs.showMillis());
-            previewTime.setText(text);
-        }
-        int availableW = DpUtils.dp(this, size.widthDp) - DpUtils.dp(this, 8);
-        int availableH = DpUtils.dp(this, size.heightDp) - DpUtils.dp(this, 4);
-        float low = 6f;
-        float high = Math.max(availableH, 6f);
-        for (int i = 0; i < 12; i++) {
-            float mid = (low + high) / 2f;
-            previewTime.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, mid);
-            previewTime.measure(
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            if (previewTime.getMeasuredWidth() <= availableW
-                    && previewTime.getMeasuredHeight() <= availableH) {
-                low = mid;
-            } else {
-                high = mid;
-            }
-        }
-        previewTime.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, low);
+        refreshPreviewText();
+        TimeTextFitter.fit(previewTime, widthPx, heightPx);
     }
 
     private void refreshPassthroughStatus() {
@@ -402,6 +449,7 @@ public class MainActivity extends Activity {
             Toast.makeText(this, R.string.permission_denied_hint, Toast.LENGTH_SHORT).show();
         }
         showPermissionUi(!Settings.canDrawOverlays(this));
+        syncOverlaySwitchFromPrefs();
     }
 
     private void showPermissionUi(boolean need) {

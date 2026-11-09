@@ -36,6 +36,8 @@ gradlew.bat assembleRelease
 
 产物：`app/build/outputs/apk/release/app-release.apk`（已签名，可直接安装）。
 
+开源仓库内可直接下载预构建包：[`release/TimeHUD-0.1.4.apk`](release/TimeHUD-0.1.4.apk)。
+
 若尚未配置 `keystore/timehud-release.jks`，Release 会回退使用 Debug 签名，仍可装内部包。
 
 ### Release 签名（可选）

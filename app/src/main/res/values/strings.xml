@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">时间浮窗</string>
+    <string name="app_intro_title">时间浮窗</string>
+    <string name="app_intro_body">跨普通 App 显示本地时间，便于整屏录屏后定位 Bug 节点。Android 8.0+，设置保存在本机。</string>
 
     <string name="card_preview_title">实时预览与总开关</string>
     <string name="card_format_title">时间格式</string>
@@ -50,6 +52,7 @@
     <string name="notification_title">时间浮窗运行中</string>
     <string name="notification_text">点击打开设置，或从此通知关闭浮窗</string>
     <string name="action_settings">设置</string>
+    <string name="action_close">关闭</string>
     <string name="action_close_overlay">关闭浮窗</string>
 
     <string name="preview_locked_tag">已锁定</string>
