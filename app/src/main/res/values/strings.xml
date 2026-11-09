@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">时间浮窗</string>
+
+    <string name="card_preview_title">实时预览与总开关</string>
+    <string name="card_format_title">时间格式</string>
+    <string name="card_size_title">窗口尺寸</string>
+    <string name="card_appearance_title">外观</string>
+    <string name="card_interaction_title">浮窗交互</string>
+
+    <string name="overlay_switch">显示时间浮窗</string>
+    <string name="permission_needed">需要「显示在其他应用上层」权限才能开启浮窗。</string>
+    <string name="grant_permission">去授权</string>
+    <string name="permission_denied_hint">未授予悬浮窗权限，总开关已关闭。</string>
+
+    <string name="format_to_second">到秒</string>
+    <string name="format_to_millis">到毫秒</string>
+    <string name="format_show_date">显示日期</string>
+
+    <string name="size_compact">紧凑</string>
+    <string name="size_standard">标准</string>
+    <string name="size_large">大号</string>
+    <string name="size_custom_width">宽</string>
+    <string name="size_custom_height">高</string>
+    <string name="size_apply">应用</string>
+    <string name="size_error_min">小于当前格式最小尺寸，未保存</string>
+    <string name="size_error_max">超过上限 600×160，未保存</string>
+    <string name="size_error_invalid">请输入有效数字</string>
+    <string name="size_current">当前：%1$d × %2$d dp</string>
+
+    <string name="transparency_label">背景透明度 %1$d%%</string>
+    <string name="text_color_label">时间颜色</string>
+    <string name="color_white">白</string>
+    <string name="color_black">黑</string>
+    <string name="color_red">红</string>
+    <string name="color_yellow">黄</string>
+    <string name="color_green">绿</string>
+    <string name="color_blue">蓝</string>
+
+    <string name="lock_passthrough">锁定浮窗 · 触摸穿透</string>
+    <string name="passthrough_active">当前有效：触摸穿透（锁定或系统限制）</string>
+    <string name="passthrough_inactive">当前有效：可拖动 / 点击</string>
+    <string name="android12_opacity_note">Android 12+：系统对可触控遮挡有透明度上限（约 80% 不透明）。背景过透时即使未锁定，触摸也可能穿透到下方应用。该限制与上方透明度滑杆相互独立说明。</string>
+
+    <string name="notes_title">说明</string>
+    <string name="notes_body">部分系统安全页面可能禁止任何浮窗覆盖。\n录屏请选择「整个屏幕」，才能录到浮窗时间。\n「到毫秒」只表示显示三位毫秒，不等于毫秒级刷新或视频时间码精度。</string>
+
+    <string name="notification_channel_name">浮窗运行中</string>
+    <string name="notification_channel_desc">时间浮窗前台服务通知（无桌面角标）</string>
+    <string name="notification_title">时间浮窗运行中</string>
+    <string name="notification_text">点击打开设置，或从此通知关闭浮窗</string>
+    <string name="action_settings">设置</string>
+    <string name="action_close_overlay">关闭浮窗</string>
+
+    <string name="preview_locked_tag">已锁定</string>
+</resources>

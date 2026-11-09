@@ -1,0 +1,59 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.internal.timeoverlay'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+
+    defaultConfig {
+        applicationId "com.internal.timeoverlay"
+        minSdk 26
+        targetSdk 35
+        versionCode 14
+        versionName "0.1.4"
+    }
+
+    signingConfigs {
+        release {
+            def keystoreFile = rootProject.file('keystore/timehud-release.jks')
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword System.getenv('TIMEHUD_STORE_PASSWORD') ?: (project.findProperty('TIMEHUD_STORE_PASSWORD') ?: '')
+                keyAlias System.getenv('TIMEHUD_KEY_ALIAS') ?: (project.findProperty('TIMEHUD_KEY_ALIAS') ?: 'timehud')
+                keyPassword System.getenv('TIMEHUD_KEY_PASSWORD') ?: (project.findProperty('TIMEHUD_KEY_PASSWORD') ?: '')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        warningsAsErrors false
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
