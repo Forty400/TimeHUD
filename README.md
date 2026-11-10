@@ -3,6 +3,11 @@
 Android 8.0+ 悬浮时钟，便于整屏录屏后定位 Bug 时间点。  
 包名：`com.internal.timeoverlay` · 版本：`0.1.4`
 
+## 下载
+
+- 仓库路径：[`release/TimeHUD-0.1.4.apk`](release/TimeHUD-0.1.4.apk)
+- 直链下载：https://github.com/Forty400/TimeHUD/raw/main/release/TimeHUD-0.1.4.apk
+
 ## 功能范围（v0.1.4）
 
 - 跨普通 App 显示本地时间（到秒 / 到毫秒，可选日期）
@@ -34,9 +39,8 @@ gradlew.bat lint
 gradlew.bat assembleRelease
 ```
 
-产物：`app/build/outputs/apk/release/app-release.apk`（已签名，可直接安装）。
-
-开源仓库内可直接下载预构建包：[`release/TimeHUD-0.1.4.apk`](release/TimeHUD-0.1.4.apk)。
+本地构建产物：`app/build/outputs/apk/release/app-release.apk`（已签名，可直接安装）。  
+预构建包见上方 [下载](#下载)。
 
 若尚未配置 `keystore/timehud-release.jks`，Release 会回退使用 Debug 签名，仍可装内部包。
 
